@@ -1,6 +1,6 @@
 {
   "name": "purescript-simple-json",
-  "set": "erl-0.12.0-20181101-3",
+  "set": "erl-0.12.0-20181114",
   "source": "http://github.com/purerl/package-sets",
   "depends": [
     "assert",
