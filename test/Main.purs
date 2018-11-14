@@ -23,7 +23,6 @@ import Test.Inferred as Test.Inferred
 import Test.Quickstart as Test.Quickstart
 import Type.Proxy (Proxy(..))
 import Effect.Console
-import Debug.Trace 
 type E a = Either MultipleErrors a
 
 
@@ -101,57 +100,40 @@ shouldEqual a b =
 
 main :: Effect Unit
 main = do
-  log "0"
   shouldEqual 1 1
-
-  log "1"
 
   -- "fails with invalid JSON"
   let r1 = readJSON """{ "c": 1, "d": 2}"""
-  traceM r1
   (unsafePartial $ fromLeft r1) `shouldEqual`
     (NonEmptyList (NonEmpty (ErrorAtProperty "a" (TypeMismatch "integer" "atom")) Nil))
   isRight (r1 :: E MyTest) `shouldEqual` false
 
-  log "2"
-
   -- "works with missing Maybe fields by setting them to Nothing"
   let r2 = readJSON "{}"
-  traceM r2
-  traceM $ (writeJSON <$> (r2 :: E MyTestMaybe))
   (writeJSON <$> (r2 :: E MyTestMaybe)) `shouldEqual` (Right """{"a":null}""")
-
-  log "3"
 
   -- "fails with undefined for null with correct error message"
   let r3 = readJSON """
     { "a": "asdf" }
   """
-  traceM r3
   (unsafePartial $ fromLeft r3) `shouldEqual`
     (NonEmptyList (NonEmpty (ErrorAtProperty "b" (TypeMismatch "Nullable binary" "atom")) Nil))
   (isRight (r3 :: E MyTestNullable)) `shouldEqual` false
 
-  log "4"
-
   roundtrips (Proxy :: Proxy MyTestNoArray) """
     { "a": 1, "b": "asdf", "c": true }
   """
-  log "4.5"
-
 
   -- roundtrips
   -- "works with proper JSON"
   roundtrips (Proxy :: Proxy MyTest) """
     { "a": 1, "b": "asdf", "c": true, "d": ["A", "B"]}
   """
-  log "5"
 
   -- "works with JSON lacking Maybe field"
   roundtrips (Proxy :: Proxy MyTestNull) """
     { "a": 1, "b": "asdf", "c": true, "d": ["A", "B"]}
   """
-  log "6"
 
   -- "works with JSON containing Maybe field"
   roundtrips (Proxy :: Proxy MyTestNull) """
@@ -162,20 +144,16 @@ main = do
   -- roundtrips (Proxy :: Proxy MyTestStrMap) """
   --   { "a": 1, "b": {"asdf": 1, "c": 2} }
   -- """
-  log "7"
 
   -- "works with Maybe field and existing value"
   roundtrips (Proxy :: Proxy MyTestMaybe) """
     { "a": "foo" }
   """
-  log "8"
 
   -- "works with Nullable"
   roundtrips (Proxy :: Proxy MyTestNullable) """
     { "a": null, "b": "a" }
   """
-
-  log "9"
 
   -- "works with Variant"
   roundtrips (Proxy :: Proxy MyTestVariant) """
