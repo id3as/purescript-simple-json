@@ -31,6 +31,7 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Control.Monad.Except (ExceptT(..), runExcept, withExcept)
+import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either, hush)
 import Data.Identity (Identity(..))
@@ -42,10 +43,10 @@ import Data.Variant (Variant, inj, on)
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
 import Effect.Unsafe (unsafePerformEffect)
-import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readArray, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeToForeign)
+import Erl.Data.List (List)
+import Erl.Data.List as List
+import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readArray, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
-import Foreign.Object (Object)
-import Foreign.Object as Object
 import Global.Unsafe (unsafeStringify)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as Row
@@ -81,12 +82,14 @@ readJSON_ ::  forall a
   -> Maybe a
 readJSON_ = hush <<< readJSON
 
+foreign import stringifyJSON :: Foreign -> String
+
 -- | Write a JSON string from a type `a`.
 writeJSON :: forall a
   .  WriteForeign a
   => a
   -> String
-writeJSON = unsafeStringify <<< writeImpl
+writeJSON = stringifyJSON <<< writeImpl
 
 write :: forall a
   .  WriteForeign a
@@ -163,7 +166,13 @@ instance readBoolean :: ReadForeign Boolean where
   readImpl = readBoolean
 
 instance readArray :: ReadForeign a => ReadForeign (Array a) where
-  readImpl = traverse readImpl <=< readArray
+  readImpl = traverse readImpl <=< (pure <<< Array.fromFoldable) <=< readListF
+
+instance readList :: ReadForeign a => ReadForeign (List a) where
+  readImpl = traverse readImpl <=< readListF
+
+readListF :: Foreign -> F (List Foreign)
+readListF = unsafeReadTagged "list"
 
 instance readMaybe :: ReadForeign a => ReadForeign (Maybe a) where
   readImpl = readNullOrUndefined readImpl
@@ -178,15 +187,6 @@ instance readNullable :: ReadForeign a => ReadForeign (Nullable a) where
       reformat error = case error of
         TypeMismatch inner other -> TypeMismatch ("Nullable " <> inner) other
         _ -> error
-
-instance readObject :: ReadForeign a => ReadForeign (Object.Object a) where
-  readImpl = sequence <<< Object.mapWithKey (const readImpl) <=< readObject'
-    where
-      readObject' :: Foreign -> F (Object Foreign)
-      readObject' value
-        | tagOf value == "Object" = pure $ unsafeFromForeign value
-        | otherwise = fail $ TypeMismatch "Object" (tagOf value)
-
 
 instance readRecord ::
   ( RowToList fields fieldList
@@ -285,6 +285,9 @@ instance writeForeignBoolean :: WriteForeign Boolean where
   writeImpl = unsafeToForeign
 
 instance writeForeignArray :: WriteForeign a => WriteForeign (Array a) where
+  writeImpl xs = writeImpl $ List.fromFoldable xs
+
+instance writeForeignList :: WriteForeign a => WriteForeign (List a) where
   writeImpl xs = unsafeToForeign $ writeImpl <$> xs
 
 instance writeForeignMaybe :: WriteForeign a => WriteForeign (Maybe a) where
@@ -292,9 +295,6 @@ instance writeForeignMaybe :: WriteForeign a => WriteForeign (Maybe a) where
 
 instance writeForeignNullable :: WriteForeign a => WriteForeign (Nullable a) where
   writeImpl = maybe (unsafeToForeign $ toNullable Nothing) writeImpl <<< toMaybe
-
-instance writeForeignObject :: WriteForeign a => WriteForeign (Object.Object a) where
-  writeImpl = unsafeToForeign <<< Object.mapWithKey (const writeImpl)
 
 instance recordWriteForeign ::
   ( RowToList row rl

@@ -1,0 +1,26 @@
+{
+  "name": "purescript-simple-json",
+  "set": "erl-0.12.0-20181101-3",
+  "source": "http://github.com/purerl/package-sets",
+  "depends": [
+    "assert",
+    "debug",
+    "effect",
+    "erl-lists",
+    "exceptions",
+    "foldable-traversable",
+    "foreign",
+    "functions",
+    "generics-rep",
+    "globals",
+    "lists",
+    "nullable",
+    "partial",
+    "prelude",
+    "record",
+    "strings",
+    "transformers",
+    "typelevel-prelude",
+    "variant"
+  ]
+}
