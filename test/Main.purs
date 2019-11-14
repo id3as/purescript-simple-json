@@ -39,6 +39,11 @@ type MyTest =
   , d :: Array String
   }
 
+type MyTestNumber =
+    { a :: Number
+    , b :: Int
+    }
+
 type MyTestNull =
   { a :: Int
   , b :: String
@@ -139,6 +144,17 @@ main = do
   roundtrips (Proxy :: Proxy MyTestNull) """
     { "a": 1, "b": "asdf", "c": true, "d": ["A", "B"], "e": ["C", "D"]}
   """
+
+-- "works with JSON containing floats "
+  roundtrips (Proxy :: Proxy MyTestNumber) """
+    { "a": 1.0, "b": 1 }
+  """
+
+  -- "works with JSON containing floats which happen to be ints"
+  roundtrips (Proxy :: Proxy MyTestNumber) """
+    { "a": 1, "b": 1 }
+  """
+    
 
   -- -- -- "works with JSON containing Object field"
   -- roundtrips (Proxy :: Proxy MyTestStrMap) """

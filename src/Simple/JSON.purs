@@ -35,6 +35,7 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either, hush)
 import Data.Identity (Identity(..))
+import Data.Int (toNumber)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
@@ -154,7 +155,7 @@ instance readChar :: ReadForeign Char where
   readImpl = readChar
 
 instance readNumber :: ReadForeign Number where
-  readImpl = readNumber
+  readImpl n = readNumber n <|> (toNumber <$> readInt n)
 
 instance readInt :: ReadForeign Int where
   readImpl = readInt
