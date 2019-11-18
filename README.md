@@ -8,6 +8,10 @@ Get going quickly with the Quickstart section of the guide: <https://purescript-
 
 You may also be interested in this presentation about how Simple-JSON works well with PureScript-Record: <https://speakerdeck.com/justinwoo/easy-json-deserialization-with-simple-json-and-record>. Note that the slides are based on an older version of the library and on PureScript 0.11.6, and it is not necessary to understand these slides to get started.
 
+## Dependencies
+
+This purerl port of simple-json assumes that the `jsx` application is available, you may e.g. want to add this to your `rebar.conf`.
+
 ## Usage
 
 In brief:
