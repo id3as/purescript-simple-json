@@ -46,9 +46,10 @@ import Effect.Uncurried as EU
 import Effect.Unsafe (unsafePerformEffect)
 import Erl.Data.List (List)
 import Erl.Data.List as List
-import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readArray, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
+import Erl.Data.Map (Map)
+import Erl.Data.Map as Map
+import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
-import Global.Unsafe (unsafeStringify)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as Row
 import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
@@ -189,6 +190,14 @@ instance readNullable :: ReadForeign a => ReadForeign (Nullable a) where
         TypeMismatch inner other -> TypeMismatch ("Nullable " <> inner) other
         _ -> error
 
+instance readMap :: ReadForeign a => ReadForeign (Map String a) where
+  readImpl = sequence <<< map readImpl <=< readObject'
+    where
+      readObject' :: Foreign -> F (Map String Foreign)
+      readObject' value
+        | tagOf value == "map" = pure $ unsafeFromForeign value
+        | otherwise = fail $ TypeMismatch "Object" (tagOf value)
+
 instance readRecord ::
   ( RowToList fields fieldList
   , ReadForeignFields fieldList () fields
@@ -296,6 +305,9 @@ instance writeForeignMaybe :: WriteForeign a => WriteForeign (Maybe a) where
 
 instance writeForeignNullable :: WriteForeign a => WriteForeign (Nullable a) where
   writeImpl = maybe (unsafeToForeign $ toNullable Nothing) writeImpl <<< toMaybe
+
+instance writeForeignObject :: WriteForeign a => WriteForeign (Map String a) where
+  writeImpl = unsafeToForeign <<< map writeImpl
 
 instance recordWriteForeign ::
   ( RowToList row rl

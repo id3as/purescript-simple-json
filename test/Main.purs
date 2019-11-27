@@ -12,7 +12,9 @@ import Data.NonEmpty (NonEmpty(..))
 import Data.Nullable (Nullable)
 import Data.Variant (Variant)
 import Effect (Effect)
+import Effect.Console (log)
 import Effect.Exception (throw)
+import Erl.Data.Map (Map)
 import Foreign (Foreign, ForeignError(..), MultipleErrors)
 import Partial.Unsafe (unsafePartial)
 import Simple.JSON (class ReadForeign, class WriteForeign, parseJSON, readJSON, writeJSON)
@@ -22,7 +24,7 @@ import Test.Generic as Test.Generic
 import Test.Inferred as Test.Inferred
 import Test.Quickstart as Test.Quickstart
 import Type.Proxy (Proxy(..))
-import Effect.Console
+
 type E a = Either MultipleErrors a
 
 
@@ -52,10 +54,10 @@ type MyTestNull =
   , e :: Maybe (Array String)
   }
 
--- type MyTestStrMap =
---   { a :: Int
---   , b :: Object Int
---   }
+type MyTestStrMap =
+  { a :: Int
+  , b :: Map String Int
+  }
 
 type MyTestMaybe =
   { a :: Maybe String
@@ -84,6 +86,7 @@ type MyTestVariant = Variant
   , b :: Int
   )
 
+
 roundtrips :: forall a. ReadForeign a => WriteForeign a => Proxy a -> String -> Effect Unit
 roundtrips _ enc0 = do
   let parseJSON' = lmap show <<< runExcept <<< parseJSON
@@ -103,10 +106,11 @@ shouldEqual :: forall a . Eq a => a -> a -> Effect Unit
 shouldEqual a b =
   assert (a == b)
 
+
 main :: Effect Unit
 main = do
   shouldEqual 1 1
-
+  
   -- "fails with invalid JSON"
   let r1 = readJSON """{ "c": 1, "d": 2}"""
   (unsafePartial $ fromLeft r1) `shouldEqual`
@@ -156,10 +160,10 @@ main = do
   """
     
 
-  -- -- -- "works with JSON containing Object field"
-  -- roundtrips (Proxy :: Proxy MyTestStrMap) """
-  --   { "a": 1, "b": {"asdf": 1, "c": 2} }
-  -- """
+  -- "works with JSON containing Map field"
+  roundtrips (Proxy :: Proxy MyTestStrMap) """
+    { "a": 1, "b": {"asdf": 1, "c": 2} }
+  """
 
   -- "works with Maybe field and existing value"
   roundtrips (Proxy :: Proxy MyTestMaybe) """

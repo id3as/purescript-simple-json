@@ -6,6 +6,7 @@
     "assert",
     "effect",
     "erl-lists",
+    "erl-maps",
     "exceptions",
     "foldable-traversable",
     "foreign",
