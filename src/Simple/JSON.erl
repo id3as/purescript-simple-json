@@ -5,10 +5,7 @@
     jsx:decode(S, [return_maps])
 end.
 
-% This is a lie for sure, but there is no such thing as undefined in JSON, the JS version relies on objects
-% containing properties with undefined values to be omitted, while we would have to recurse here before passing
-% to JSX to remove them or
-'_undefined'() -> null.
+'_undefined'() -> undefined.
 
 stringifyJSON(J) -> jsx:encode(remove_undefined(J)).
 
