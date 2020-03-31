@@ -198,6 +198,14 @@ instance readMap :: ReadForeign a => ReadForeign (Map String a) where
         | tagOf value == "map" = pure $ unsafeFromForeign value
         | otherwise = fail $ TypeMismatch "Object" (tagOf value)
 
+else instance readNewtypeMap :: (Newtype b String, ReadForeign a) => ReadForeign (Map b a) where
+  readImpl = sequence <<< map readImpl <=< readObject'
+    where
+      readObject' :: Foreign -> F (Map b Foreign)
+      readObject' value
+        | tagOf value == "map" = pure $ unsafeFromForeign value
+        | otherwise = fail $ TypeMismatch "Object" (tagOf value)
+
 instance readRecord ::
   ( RowToList fields fieldList
   , ReadForeignFields fieldList () fields
