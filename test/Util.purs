@@ -2,13 +2,11 @@ module Test.Util where
 
 import Prelude
 
-import Record (get)
-import Type.Prelude (class IsSymbol, SProxy(..))
 import Type.Data.RowList (RLProxy(..))
-import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
 import Prim.Row as Row
-
-
+import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
+import Record (get)
+import Type.Prelude (class IsSymbol, RLProxy(..), SProxy(..))
 
 -- | Check two records of the same type for equality.
 equal

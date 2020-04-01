@@ -2,7 +2,7 @@
 -export(['_parseJSON'/0, '_undefined'/0, stringifyJSON/1]).
 
 '_parseJSON'() -> fun (S) ->
-    jsx:decode(S, [return_maps])
+  jsx:decode(S, [return_maps])
 end.
 
 '_undefined'() -> undefined.

@@ -30,17 +30,20 @@ module Simple.JSON
 import Prelude
 
 import Control.Alt ((<|>))
-import Control.Monad.Except (ExceptT(..), runExcept, withExcept)
+import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExcept)
 import Data.Array as Array
+import Data.Array.NonEmpty (NonEmptyArray, fromArray, toArray)
 import Data.Bifunctor (lmap)
-import Data.Either (Either, hush)
+import Data.Either (Either(..), hush, note)
 import Data.Identity (Identity(..))
 import Data.Int (toNumber)
+import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (class Newtype)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Traversable (sequence, traverse)
+import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Variant (Variant, inj, on)
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
@@ -76,7 +79,7 @@ readJSON' :: forall a
   -> F a
 readJSON' = readImpl <=< parseJSON
 
--- | Read a JSON string to a type `a` while returning `Nothing` is the parsing
+-- | Read a JSON string to a type `a` while returning `Nothing` if the parsing
 -- | failed.
 readJSON_ ::  forall a
    . ReadForeign a
@@ -168,7 +171,9 @@ instance readBoolean :: ReadForeign Boolean where
   readImpl = readBoolean
 
 instance readArray :: ReadForeign a => ReadForeign (Array a) where
-  readImpl = traverse readImpl <=< (pure <<< Array.fromFoldable) <=< readListF
+  readImpl = traverseWithIndex readAtIdx <=< (pure <<< Array.fromFoldable) <=< readListF
+    where
+      readAtIdx i f = withExcept (map (ErrorAtIndex i)) (readImpl f)
 
 instance readList :: ReadForeign a => ReadForeign (List a) where
   readImpl = traverse readImpl <=< readListF
@@ -228,7 +233,7 @@ instance readFieldsCons ::
   , Row.Lacks name from'
   , Row.Cons name ty from' to
   ) => ReadForeignFields (Cons name ty tail) from to where
-  getFields _ obj = compose <$> first <*> rest
+  getFields _ obj = (compose <$> first) `exceptTApply` rest
     where
       first = do
         value <- withExcept' (readImpl =<< readProp name obj)
@@ -238,6 +243,17 @@ instance readFieldsCons ::
       tailP = RLProxy :: RLProxy tail
       name = reflectSymbol nameP
       withExcept' = withExcept <<< map $ ErrorAtProperty name
+
+exceptTApply :: forall a b e m. Semigroup e => Applicative m => ExceptT e m (a -> b) -> ExceptT e m a -> ExceptT e m b
+exceptTApply fun a = ExceptT $ applyEither
+  <$> runExceptT fun
+  <*> runExceptT a
+
+applyEither :: forall e a b. Semigroup e => Either e (a -> b) -> Either e a -> Either e b
+applyEither (Left e) (Right _) = Left e
+applyEither (Left e1) (Left e2) = Left (e1 <> e2)
+applyEither (Right _) (Left e) = Left e
+applyEither (Right fun) (Right a) = Right (fun a)
 
 instance readFieldsNil ::
   ReadForeignFields Nil () () where
@@ -383,3 +399,11 @@ instance consWriteForeignVariant ::
       { type: reflectSymbol namep
       , value: writeImpl value
       }
+
+instance readForeignNEArray :: ReadForeign a => ReadForeign (NonEmptyArray a) where
+  readImpl f = do
+    raw :: Array a <- readImpl f
+    except $ note (singleton $ ForeignError "Nonempty array expected, got empty array") $ fromArray raw
+
+instance writeForeignNEArray :: WriteForeign a => WriteForeign (NonEmptyArray a) where
+  writeImpl a = writeImpl <<< toArray $ a
