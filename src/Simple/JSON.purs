@@ -330,7 +330,10 @@ instance writeForeignMaybe :: WriteForeign a => WriteForeign (Maybe a) where
 instance writeForeignNullable :: WriteForeign a => WriteForeign (Nullable a) where
   writeImpl = maybe (unsafeToForeign $ toNullable Nothing) writeImpl <<< toMaybe
 
-instance writeForeignObject :: WriteForeign a => WriteForeign (Map String a) where
+instance writeForeignMap :: WriteForeign a => WriteForeign (Map String a) where
+  writeImpl = unsafeToForeign <<< map writeImpl
+
+else instance writeForeignNewtypeMap :: (Newtype b String, WriteForeign a) => WriteForeign (Map b a) where
   writeImpl = unsafeToForeign <<< map writeImpl
 
 instance recordWriteForeign ::

@@ -8,6 +8,7 @@ import Data.Either (Either(..), either, fromLeft, isRight)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList(..))
 import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import Data.NonEmpty (NonEmpty(..))
 import Data.Nullable (Nullable)
 import Data.Variant (Variant)
@@ -57,6 +58,14 @@ type MyTestNull =
 type MyTestStrMap =
   { a :: Int
   , b :: Map String Int
+  }
+
+newtype AlsoAString = AlsoAString String
+derive instance alsoAStringNewtype :: Newtype AlsoAString _
+
+type MyTestStrMapNewtype =
+  { a :: Int
+  , b :: Map AlsoAString Int
   }
 
 type MyTestMaybe =
@@ -166,6 +175,12 @@ main = do
   roundtrips (Proxy :: Proxy MyTestStrMap) """
     { "a": 1, "b": {"asdf": 1, "c": 2} }
   """
+
+  -- "works with JSON containing Map field with newtyped keys"
+  roundtrips (Proxy :: Proxy MyTestStrMapNewtype) """
+    { "a": 1, "b": {"asdf": 1, "c": 2} }
+  """
+
 
   -- "works with Maybe field and existing value"
   roundtrips (Proxy :: Proxy MyTestMaybe) """
