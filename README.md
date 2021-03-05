@@ -1,6 +1,7 @@
 # Purescript-Simple-JSON
 
-[![Build Status](https://travis-ci.org/justinwoo/purescript-simple-json.svg?branch=master)](https://travis-ci.org/justinwoo/purescript-simple-json) [![Documentation Status](https://readthedocs.org/projects/purescript-simple-json/badge/?version=latest)](https://purescript-simple-json.readthedocs.io/en/latest)
+[<img alt="build status" src="https://img.shields.io/github/workflow/status/justinwoo/purescript-simple-json/ci?logo=github&style=for-the-badge" height="20">](https://github.com/justinwoo/purescript-simple-json/actions?query=workflow%3Aci)
+[<img alt="documentation status" src="https://img.shields.io/readthedocs/purescript-simple-json/latest?logo=read-the-docs&style=for-the-badge" height="20">](https://readthedocs.org/projects/purescript-simple-json/badge/?version=latest)
 
 A simple Foreign/JSON library based on the Purescript's RowToList feature.
 
@@ -50,3 +51,11 @@ Please see this page in the guide: <https://purescript-simple-json.readthedocs.i
 ### How do I work with `data` Types?
 
 Please see this page in the guide: <https://purescript-simple-json.readthedocs.io/en/latest/generics-rep.html>
+
+### Why won't you accept my Pull Request?
+
+Please read this appeal from another open source author: <https://github.com/benbjohnson/litestream#open-source-not-open-contribution>
+
+### How should I actually use this library?
+
+James Brock has informed me that people still do not understand that this library should be used not as a library. If you do not like any of the behavior in this library or would like to opt out of some behaviors, you should copy this library into your own codebase. Please see that this libraries does not actually contain many lines of code and you should be able to learn how to construct this library from scratch with a few days of reading.
