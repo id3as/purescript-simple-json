@@ -18,7 +18,7 @@ equal
   -> Boolean
 equal a b = equalFields (RLProxy :: RLProxy rs) a b
 
-class EqualFields (rs :: RowList) (row :: # Type) | rs -> row where
+class EqualFields (rs :: RowList Type) (row :: Row Type) | rs -> row where
   equalFields :: RLProxy rs -> Record row -> Record row -> Boolean
 
 instance equalFieldsCons

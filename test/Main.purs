@@ -4,7 +4,7 @@ import Prelude
 
 import Control.Monad.Except (runExcept)
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, fromLeft, isRight)
+import Data.Either (Either(..), either, fromLeft, fromLeft', isRight)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList(..))
 import Data.Maybe (Maybe)
@@ -12,13 +12,14 @@ import Data.Newtype (class Newtype)
 import Data.NonEmpty (NonEmpty(..))
 import Data.Nullable (Nullable)
 import Data.Variant (Variant)
+import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Console (log)
 import Effect.Exception (throw)
 import Erl.Data.Map (Map)
 import Foreign (Foreign, ForeignError(..), MultipleErrors)
-import Partial.Unsafe (unsafePartial)
-import Simple.JSON (class ReadForeign, class WriteForeign, parseJSON, readJSON, writeJSON)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Simple.JSON (class ReadForeign, class WriteForeign, parseJSON, readImpl, readJSON, writeImpl, writeJSON)
 import Test.Assert (assertEqual)
 import Test.EnumSumGeneric as Test.EnumSumGeneric
 import Test.Generic as Test.Generic
@@ -116,15 +117,22 @@ shouldEqual :: forall a . Eq a => Show a => a -> a -> Effect Unit
 shouldEqual a b =
   assertEqual { actual: a, expected: b}
 
+unsafeFromLeft = fromLeft' (\_ -> unsafeCrashWith "not left") 
 
 main :: Effect Unit
 main = do
-  shouldEqual 1 1
-  
+
+  (runExcept $ readImpl $ writeImpl { a: 42 }) `shouldEqual` Right { a: 42 }
+
+  let x :: E { a :: Int }
+      x = readJSON """{ "a": 42 }"""
+  isRight x `shouldEqual` true
+
+  log "r1"
   -- "fails with invalid JSON"
   let r1 :: E MyTest
       r1 = readJSON """{ "c": 1, "d": 2}"""
-  (unsafePartial $ fromLeft r1) `shouldEqual`
+  (unsafeFromLeft r1) `shouldEqual`
      (NonEmptyList (NonEmpty (ErrorAtProperty "a" (TypeMismatch "integer" "atom")) ((ErrorAtProperty "b" (TypeMismatch "binary" "atom")) : (ErrorAtProperty "c" (TypeMismatch "boolean" "integer")) : (ErrorAtProperty "d" (TypeMismatch "list" "integer")) : Nil)))
   isRight (r1 :: E MyTest) `shouldEqual` false
 
@@ -136,7 +144,7 @@ main = do
   let r3 = readJSON """
     { "a": "asdf" }
   """
-  (unsafePartial $ fromLeft r3) `shouldEqual`
+  (unsafeFromLeft r3) `shouldEqual`
     (NonEmptyList (NonEmpty (ErrorAtProperty "b" (TypeMismatch "Nullable binary" "atom")) Nil))
   (isRight (r3 :: E MyTestNullable)) `shouldEqual` false
 

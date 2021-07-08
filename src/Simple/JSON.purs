@@ -51,6 +51,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Erl.Data.List (List)
 import Erl.Data.List as List
 import Erl.Data.Map (Map)
+import Erl.Data.Map as Map
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
 import Partial.Unsafe (unsafeCrashWith)
@@ -338,35 +339,33 @@ else instance writeForeignNewtypeMap :: (Newtype b String, WriteForeign a) => Wr
 
 instance recordWriteForeign ::
   ( RowToList row rl
-  , WriteForeignFields rl row () to
+  , WriteForeignFields rl row
   ) => WriteForeign (Record row) where
-  writeImpl rec = unsafeToForeign $ Builder.build steps {}
+  writeImpl rec = unsafeToForeign $ writeImplFields rlp rec
     where
       rlp = RLProxy :: RLProxy rl
-      steps = writeImplFields rlp rec
 
-class WriteForeignFields (rl :: RowList Type) row (from :: Row Type) (to :: Row Type)
-  | rl -> row from to where
-  writeImplFields :: forall g. g rl -> Record row -> Builder (Record from) (Record to)
+class WriteForeignFields (rl :: RowList Type) row
+  | rl -> row where
+  writeImplFields :: forall g. g rl -> Record row -> Map String Foreign
 
 instance consWriteForeignFields ::
   ( IsSymbol name
   , WriteForeign ty
-  , WriteForeignFields tail row from from'
+  , WriteForeignFields tail row
   , Row.Cons name ty whatever row
-  , Row.Lacks name from'
-  , Row.Cons name Foreign from' to
-  ) => WriteForeignFields (Cons name ty tail) row from to where
+  ) => WriteForeignFields (Cons name ty tail) row where
   writeImplFields _ rec = result
     where
       namep = SProxy :: SProxy name
       value = writeImpl $ get namep rec
       tailp = RLProxy :: RLProxy tail
       rest = writeImplFields tailp rec
-      result = Builder.insert namep value <<< rest
+      result = Map.insert (reflectSymbol namep) value rest
+
 instance nilWriteForeignFields ::
-  WriteForeignFields Nil row () () where
-  writeImplFields _ _ = identity
+  WriteForeignFields Nil row where
+  writeImplFields _ _ = Map.empty
 
 instance writeForeignVariant ::
   ( RowToList row rl
