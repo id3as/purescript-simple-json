@@ -1,17 +1,16 @@
-.PHONY: ps erl all test test-erl
+.PHONY: ps erl all test clean distclean
 
-all: ps erl
+.DEFAULT_GOAL := ps
+
+all: test
 
 ps:
-	spago -x test.dhall build
+	@spago build
 
-erl: ps
-	erlc -o ebin output/*/*.erl
+clean:
+	rm -rf output
 
-test: erl
-	erl -pa ebin jsx/_build/default/lib/jsx/ebin -noshell -eval '(test_main@ps:main())()' -eval 'init:stop()'
-
-jsx:
-	git clone git@github.com:talentdeficit/jsx.git
-	cd jsx && rebar3 compile
-
+distclean: clean
+	rm -rf .spago
+test: 
+	@spago -x test.dhall test

@@ -8,6 +8,7 @@ module Simple.JSON
 , read
 , read'
 , read_
+, readAsForeign
 , parseJSON
 , undefined
 
@@ -52,6 +53,8 @@ import Erl.Data.List (List)
 import Erl.Data.List as List
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
+import Erl.Kernel.Inet (Ip6Address, IpAddress, Ip4Address, Port(..), parseIpAddress, parseIp4Address, parseIp6Address)
+import Erl.Types (Hextet, Octet, hextet, octet)
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
 import Partial.Unsafe (unsafeCrashWith)
@@ -187,6 +190,34 @@ instance readMaybe :: ReadForeign a => ReadForeign (Maybe a) where
     where
       readNullOrUndefined _ value | isNull value || isUndefined value = pure Nothing
       readNullOrUndefined f value = Just <$> f value
+
+instance ReadForeign Hextet where
+  readImpl = readInt >=> mapToHextet
+    where
+      mapToHextet i = except $ note (singleton $ ForeignError "Invalid hextet") $ hextet i
+
+instance ReadForeign Octet where
+  readImpl = readInt >=> mapToOctet
+    where
+      mapToOctet i = except $ note (singleton $ ForeignError "Invalid octet") $ octet i
+
+instance ReadForeign Port where
+  readImpl p = Port <$> readInt p
+
+instance ReadForeign IpAddress where
+  readImpl = readString >=> mapToIp
+    where
+      mapToIp i = except $ note (singleton $ ForeignError "Invalid ip address") $ parseIpAddress i
+
+instance ReadForeign Ip4Address where
+  readImpl = readString >=> mapToIp
+    where
+      mapToIp i = except $ note (singleton $ ForeignError "Invalid ip4 address") $ parseIp4Address i
+
+instance ReadForeign Ip6Address where
+  readImpl = readString >=> mapToIp
+    where
+      mapToIp i = except $ note (singleton $ ForeignError "Invalid ip6 address") $ parseIp6Address i
 
 instance readNullable :: ReadForeign a => ReadForeign (Nullable a) where
   readImpl o = withExcept (map reformat) $
