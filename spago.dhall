@@ -12,6 +12,7 @@ You can edit this file as you like.
   , "erl-kernel"
   , "erl-lists"
   , "erl-maps"
+  , "datetime"
   , "exceptions"
   , "foldable-traversable"
   , "foreign"

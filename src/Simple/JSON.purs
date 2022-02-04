@@ -46,6 +46,7 @@ import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Variant (Variant, inj, on)
+import Data.Time.Duration (Milliseconds(..))
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
 import Effect.Unsafe (unsafePerformEffect)
@@ -203,6 +204,9 @@ instance ReadForeign Octet where
 
 instance ReadForeign Port where
   readImpl p = Port <$> readInt p
+
+instance ReadForeign Milliseconds where
+  readImpl p = Milliseconds <$> readNumber p
 
 instance ReadForeign IpAddress where
   readImpl = readString >=> mapToIp
