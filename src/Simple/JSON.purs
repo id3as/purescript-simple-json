@@ -52,7 +52,7 @@ import Erl.Data.List as List
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
 import Erl.Kernel.Inet (Ip6Address, IpAddress, Ip4Address, Port(..), parseIpAddress, parseIp4Address, parseIp6Address)
-import Erl.Types (Hextet, MonotonicTime(..), Octet, hextet, octet)
+import Erl.Types (Hextet, MonotonicTime(..), Octet, Ref, hextet, octet, refToString, stringToRef)
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
 import Partial.Unsafe (unsafeCrashWith)
@@ -214,6 +214,11 @@ instance ReadForeign Port where
 
 instance ReadForeign MonotonicTime where
   readImpl p = MonotonicTime <$> readInt p
+
+instance ReadForeign Ref where
+  readImpl = readString >=> mapToRef
+    where
+    mapToRef s = except $ note (singleton $ ForeignError "Invalid ref") $ stringToRef s
 
 instance ReadForeign Milliseconds where
   readImpl p = Milliseconds <$> readNumber p
@@ -385,6 +390,9 @@ instance writeForeignInstant :: WriteForeign Instant where
 
 instance writeForeignMonotonicTime :: WriteForeign MonotonicTime where
   writeImpl (MonotonicTime m) = unsafeToForeign m
+
+instance writeForeignRef :: WriteForeign Ref where
+  writeImpl ref = unsafeToForeign $ refToString ref
 
 instance writeForeignArray :: WriteForeign a => WriteForeign (Array a) where
   writeImpl xs = writeImpl $ List.fromFoldable xs
