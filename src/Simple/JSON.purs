@@ -388,6 +388,9 @@ instance writeForeignMilliseconds :: WriteForeign Milliseconds where
 instance writeForeignInstant :: WriteForeign Instant where
   writeImpl = writeImpl <<< unInstant
 
+instance writeForeignPort :: WriteForeign Port where
+  writeImpl (Port p) = writeImpl p
+
 instance writeForeignMonotonicTime :: WriteForeign MonotonicTime where
   writeImpl (MonotonicTime m) = unsafeToForeign m
 
