@@ -26,6 +26,7 @@ module Simple.JSON
   ) where
 
 import Prelude
+
 import Control.Alt ((<|>))
 import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExcept)
 import Data.Array as Array
@@ -49,6 +50,7 @@ import Effect.Uncurried as EU
 import Effect.Unsafe (unsafePerformEffect)
 import Erl.Data.List (List)
 import Erl.Data.List as List
+import Erl.Data.List.NonEmpty as NEL
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
 import Erl.Kernel.Inet (Ip6Address, IpAddress, Ip4Address, Port(..), parseIpAddress, parseIp4Address, parseIp6Address)
@@ -192,6 +194,9 @@ instance readList :: ReadForeign a => ReadForeign (List a) where
 
 readListF :: Foreign -> F (List Foreign)
 readListF = unsafeReadTagged "list"
+
+instance readNonEmptyList :: ReadForeign a => ReadForeign (NEL.NonEmptyList a) where
+  readImpl = (except <<< note (singleton $ ForeignError "Empty List") <<<  NEL.fromList) <=< traverse readImpl <=< readListF
 
 instance readMaybe :: ReadForeign a => ReadForeign (Maybe a) where
   readImpl = readNullOrUndefined readImpl
