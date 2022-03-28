@@ -48,11 +48,13 @@ import Data.Variant (Variant, inj, on)
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
 import Effect.Unsafe (unsafePerformEffect)
+import Erl.Data.Binary (Binary)
 import Erl.Data.List (List)
 import Erl.Data.List as List
 import Erl.Data.List.NonEmpty as NEL
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
+import Erl.Kernel.File (Directory(..), FileName(..))
 import Erl.Kernel.Inet (Ip6Address, IpAddress, Ip4Address, Port(..), parseIpAddress, parseIp4Address, parseIp6Address)
 import Erl.Types (Hextet, MonotonicTime(..), Octet, Ref, hextet, octet, refToString, stringToRef)
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
@@ -180,6 +182,15 @@ instance readInt :: ReadForeign Int where
 
 instance readString :: ReadForeign String where
   readImpl = readString
+
+instance ReadForeign FileName where
+  readImpl = (map FileName) <<< readString
+
+instance ReadForeign Directory where
+  readImpl = (map Directory) <<< readString
+
+instance readBinary :: ReadForeign Binary where
+  readImpl b = except $ note (singleton $ ForeignError "Invalid base64") $ base64Decode b
 
 instance readBoolean :: ReadForeign Boolean where
   readImpl = readBoolean
@@ -387,6 +398,12 @@ instance writeForeignNumber :: WriteForeign Number where
 instance writeForeignBoolean :: WriteForeign Boolean where
   writeImpl = unsafeToForeign
 
+instance WriteForeign FileName where
+  writeImpl (FileName str) = unsafeToForeign str
+
+instance WriteForeign Directory where
+  writeImpl (Directory str) = unsafeToForeign str
+
 instance writeForeignMilliseconds :: WriteForeign Milliseconds where
   writeImpl (Milliseconds m) = unsafeToForeign m
 
@@ -408,8 +425,14 @@ instance writeForeignArray :: WriteForeign a => WriteForeign (Array a) where
 instance writeForeignList :: WriteForeign a => WriteForeign (List a) where
   writeImpl xs = unsafeToForeign $ writeImpl <$> xs
 
+instance writeNonEmptyList :: WriteForeign a => WriteForeign (NEL.NonEmptyList a) where
+  writeImpl xs = writeImpl $ NEL.toList xs
+
 instance writeForeignMaybe :: WriteForeign a => WriteForeign (Maybe a) where
   writeImpl = maybe undefined writeImpl
+
+instance writeForeignBinary :: WriteForeign Binary where
+  writeImpl = base64Encode
 
 instance writeForeignNullable :: WriteForeign a => WriteForeign (Nullable a) where
   writeImpl = maybe (unsafeToForeign $ toNullable Nothing) writeImpl <<< toMaybe
@@ -494,3 +517,6 @@ instance readForeignNEArray :: ReadForeign a => ReadForeign (NonEmptyArray a) wh
 
 instance writeForeignNEArray :: WriteForeign a => WriteForeign (NonEmptyArray a) where
   writeImpl a = writeImpl <<< toArray $ a
+
+foreign import base64Encode :: Binary -> Foreign
+foreign import base64Decode :: Foreign -> Maybe Binary

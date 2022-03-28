@@ -1,5 +1,5 @@
 -module(simple_jSON@foreign).
--export(['_parseJSON'/0, '_undefined'/0, stringifyJSON/1]).
+-export(['_parseJSON'/0, '_undefined'/0, stringifyJSON/1, base64Decode/1, base64Encode/1]).
 
 '_parseJSON'() -> fun (S) ->
   jsx:decode(S, [return_maps])
@@ -26,3 +26,16 @@ remove_undefined(List) when is_list(List) ->
 
 remove_undefined(Value) ->
   Value.
+
+base64Decode(Encoded) when is_binary(Encoded) ->
+    try
+        {just, base64:decode(Encoded)}
+    catch
+        _:_:_ ->
+            {nothing}
+    end;
+base64Decode(_) ->
+  {nothing}.
+
+base64Encode(Plain) ->
+    base64:encode(Plain).
