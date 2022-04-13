@@ -19,6 +19,8 @@ module Simple.JSON
   , readVariantImpl
   , class WriteForeign
   , writeImpl
+  , class WriteForeignKey
+  , writeKeyImpl
   , class WriteForeignFields
   , writeImplFields
   , class WriteForeignVariant
@@ -31,7 +33,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExcept)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray, fromArray, toArray)
-import Data.Bifunctor (lmap)
+import Data.Bifunctor (bimap, lmap)
 import Data.DateTime.Instant (Instant, instant, unInstant)
 import Data.Either (Either(..), hush, note)
 import Data.Identity (Identity(..))
@@ -44,6 +46,7 @@ import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Time.Duration (Milliseconds(..))
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
+import Data.Tuple (Tuple)
 import Data.Variant (Variant, inj, on)
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
@@ -437,10 +440,11 @@ instance writeForeignBinary :: WriteForeign Binary where
 instance writeForeignNullable :: WriteForeign a => WriteForeign (Nullable a) where
   writeImpl = maybe (unsafeToForeign $ toNullable Nothing) writeImpl <<< toMaybe
 
-instance writeForeignMap :: WriteForeign a => WriteForeign (Map String a) where
-  writeImpl = unsafeToForeign <<< map writeImpl
-else instance writeForeignNewtypeMap :: (Newtype b String, WriteForeign a) => WriteForeign (Map b a) where
-  writeImpl = unsafeToForeign <<< map writeImpl
+instance (WriteForeignKey b, WriteForeign a) => WriteForeign (Map b a) where
+  writeImpl = unsafeToForeign
+    <<< (Map.fromFoldable :: List (Tuple Foreign Foreign) -> Map Foreign Foreign)
+    <<< map (bimap writeKeyImpl writeImpl)
+    <<< Map.toUnfoldable
 
 instance recordWriteForeign ::
   ( RowToList row rl
@@ -517,6 +521,13 @@ instance readForeignNEArray :: ReadForeign a => ReadForeign (NonEmptyArray a) wh
 
 instance writeForeignNEArray :: WriteForeign a => WriteForeign (NonEmptyArray a) where
   writeImpl a = writeImpl <<< toArray $ a
+
+-- -- | A class for writing a value into a JSON Object Key
+class WriteForeignKey a where
+  writeKeyImpl :: a -> Foreign
+
+instance WriteForeignKey String where
+  writeKeyImpl = writeImpl
 
 foreign import base64Encode :: Binary -> Foreign
 foreign import base64Decode :: Foreign -> Maybe Binary
