@@ -40,7 +40,7 @@ import Data.Identity (Identity(..))
 import Data.Int (toNumber)
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, un)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Time.Duration (Milliseconds(..))
@@ -57,9 +57,10 @@ import Erl.Data.List as List
 import Erl.Data.List.NonEmpty as NEL
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
+import Erl.Data.Tuple as Tuple
 import Erl.Kernel.File (Directory(..), FileName(..))
-import Erl.Kernel.Inet (Ip6Address, IpAddress, Ip4Address, Port(..), parseIpAddress, parseIp4Address, parseIp6Address)
-import Erl.Types (Hextet, MonotonicTime(..), Octet, Ref, hextet, octet, refToString, stringToRef)
+import Erl.Kernel.Inet (Ip4Address(..), Ip6Address(..), IpAddress(..), Port(..), parseIp4Address, parseIp6Address, parseIpAddress)
+import Erl.Types (Hextet(..), MonotonicTime(..), Octet(..), Ref, hextet, octet, refToString, stringToRef)
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
 import Partial.Unsafe (unsafeCrashWith)
@@ -415,6 +416,13 @@ instance writeForeignInstant :: WriteForeign Instant where
 
 instance writeForeignPort :: WriteForeign Port where
   writeImpl (Port p) = writeImpl p
+
+instance WriteForeign IpAddress where
+  writeImpl = case _ of
+    Ip4 (Ip4Address a) -> (flip Tuple.uncurry4) a \d1 d2 d3 d4 ->
+      writeImpl $ Array.intercalate "." $ map (show <<< un Octet) [d1,d2,d3,d4]
+    Ip6 (Ip6Address a) -> (flip Tuple.uncurry8) a \d1 d2 d3 d4 d5 d6 d7 d8 ->
+      writeImpl $ Array.intercalate "." $ map (show <<< un Hextet) [d1,d2,d3,d4,d5,d6,d7,d8]
 
 instance writeForeignMonotonicTime :: WriteForeign MonotonicTime where
   writeImpl (MonotonicTime m) = unsafeToForeign m
