@@ -42,6 +42,7 @@ import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (class Newtype, un)
 import Data.Nullable (Nullable, toMaybe, toNullable)
+import Data.Set (Set)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Time.Duration (Milliseconds(..))
 import Data.Traversable (sequence, traverse)
@@ -431,6 +432,9 @@ instance writeForeignRef :: WriteForeign Ref where
   writeImpl ref = unsafeToForeign $ refToString ref
 
 instance writeForeignArray :: WriteForeign a => WriteForeign (Array a) where
+  writeImpl xs = writeImpl $ List.fromFoldable xs
+
+instance WriteForeign a => WriteForeign (Set a) where
   writeImpl xs = writeImpl $ List.fromFoldable xs
 
 instance writeForeignList :: WriteForeign a => WriteForeign (List a) where
