@@ -43,6 +43,7 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (class Newtype, un)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Set (Set)
+import Data.Set as Set
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Time.Duration (Milliseconds(..))
 import Data.Traversable (sequence, traverse)
@@ -73,81 +74,80 @@ import Record.Builder as Builder
 import Type.Prelude (RLProxy(..))
 
 -- | An alias for the Either result of decoding
-type E a
-  = Either MultipleErrors a
+type E a = Either MultipleErrors a
 
 -- | Read a JSON string to a type `a` while returning a `MultipleErrors` if the
 -- | parsing failed.
-readJSON ::
-  forall a.
-  ReadForeign a =>
-  String ->
-  E a
+readJSON
+  :: forall a
+   . ReadForeign a
+  => String
+  -> E a
 readJSON = runExcept <<< (readImpl <=< parseJSON)
 
 -- | Read a JSON string to a type `a` using `F a`. Useful with record types.
-readJSON' ::
-  forall a.
-  ReadForeign a =>
-  String ->
-  F a
+readJSON'
+  :: forall a
+   . ReadForeign a
+  => String
+  -> F a
 readJSON' = readImpl <=< parseJSON
 
 -- | Read a JSON string to a type `a` while returning `Nothing` if the parsing
 -- | failed.
-readJSON_ ::
-  forall a.
-  ReadForeign a =>
-  String ->
-  Maybe a
+readJSON_
+  :: forall a
+   . ReadForeign a
+  => String
+  -> Maybe a
 readJSON_ = hush <<< readJSON
 
 foreign import stringifyJSON :: Foreign -> String
 
 -- | Write a JSON string from a type `a`.
-writeJSON ::
-  forall a.
-  WriteForeign a =>
-  a ->
-  String
+writeJSON
+  :: forall a
+   . WriteForeign a
+  => a
+  -> String
 writeJSON = stringifyJSON <<< writeImpl
 
-write ::
-  forall a.
-  WriteForeign a =>
-  a ->
-  Foreign
+write
+  :: forall a
+   . WriteForeign a
+  => a
+  -> Foreign
 write = writeImpl
 
 -- | Read a Foreign value to a type
-read ::
-  forall a.
-  ReadForeign a =>
-  Foreign ->
-  E a
+read
+  :: forall a
+   . ReadForeign a
+  => Foreign
+  -> E a
 read = runExcept <<< readImpl
 
 -- | Read a value of any type as Foreign to a type
-readAsForeign ::
-  forall a b.
-  ReadForeign a =>
-  b ->
-  E a
+readAsForeign
+  :: forall a b
+   . ReadForeign a
+  => b
+  -> E a
 readAsForeign = read <<< unsafeToForeign
 
-read' ::
-  forall a.
-  ReadForeign a =>
-  Foreign ->
-  F a
+read'
+  :: forall a
+   . ReadForeign a
+  => Foreign
+  -> F a
 read' = readImpl
 
 -- | Read a Foreign value to a type, as a Maybe of type
-read_ ::
-  forall a.
-  ReadForeign a =>
-  Foreign ->
-  Maybe a
+read_
+  :: forall a
+   . ReadForeign a
+  => Foreign
+  -> Maybe a
 read_ = hush <<< read
 
 foreign import _parseJSON :: EU.EffectFn1 String Foreign
@@ -212,7 +212,7 @@ readListF :: Foreign -> F (List Foreign)
 readListF = unsafeReadTagged "list"
 
 instance readNonEmptyList :: ReadForeign a => ReadForeign (NEL.NonEmptyList a) where
-  readImpl = (except <<< note (singleton $ ForeignError "Empty List") <<<  NEL.fromList) <=< traverse readImpl <=< readListF
+  readImpl = (except <<< note (singleton $ ForeignError "Empty List") <<< NEL.fromList) <=< traverse readImpl <=< readListF
 
 instance readMaybe :: ReadForeign a => ReadForeign (Maybe a) where
   readImpl = readNullOrUndefined readImpl
@@ -267,13 +267,17 @@ instance ReadForeign Ip6Address where
 instance readNullable :: ReadForeign a => ReadForeign (Nullable a) where
   readImpl o =
     withExcept (map reformat)
-      $ map toNullable
-      <$> traverse readImpl
-      =<< readNull o
+      $
+        map toNullable
+          <$> traverse readImpl
+          =<< readNull o
     where
     reformat error = case error of
       TypeMismatch inner other -> TypeMismatch ("Nullable " <> inner) other
       _ -> error
+
+instance (Ord a, ReadForeign a) => ReadForeign (Set a) where
+  readImpl xs = Set.fromFoldable <$> (readImpl xs :: F (List a))
 
 instance readMap :: ReadForeign a => ReadForeign (Map String a) where
   readImpl = sequence <<< map readImpl <=< readObject'
@@ -301,10 +305,10 @@ instance readRecord ::
 
 -- | A class for reading foreign values from properties
 class ReadForeignFields (xs :: RowList Type) (from :: Row Type) (to :: Row Type) | xs -> from to where
-  getFields ::
-    RLProxy xs ->
-    Foreign ->
-    F (Builder (Record from) (Record to))
+  getFields
+    :: RLProxy xs
+    -> Foreign
+    -> F (Builder (Record from) (Record to))
 
 instance readFieldsCons ::
   ( IsSymbol name
@@ -329,8 +333,8 @@ exceptTApply :: forall a b e m. Semigroup e => Applicative m => ExceptT e m (a -
 exceptTApply fun a =
   ExceptT
     $ applyEither
-    <$> runExceptT fun
-    <*> runExceptT a
+        <$> runExceptT fun
+        <*> runExceptT a
 
 applyEither :: forall e a b. Semigroup e => Either e (a -> b) -> Either e a -> Either e b
 applyEither (Left e) (Right _) = Left e
@@ -351,10 +355,10 @@ instance readForeignVariant ::
   readImpl o = readVariantImpl (RLProxy :: RLProxy rl) o
 
 class ReadForeignVariant (xs :: RowList Type) (row :: Row Type) | xs -> row where
-  readVariantImpl ::
-    RLProxy xs ->
-    Foreign ->
-    F (Variant row)
+  readVariantImpl
+    :: RLProxy xs
+    -> Foreign
+    -> F (Variant row)
 
 instance readVariantNil ::
   ReadForeignVariant Nil trash where
@@ -421,9 +425,9 @@ instance writeForeignPort :: WriteForeign Port where
 instance WriteForeign IpAddress where
   writeImpl = case _ of
     Ip4 (Ip4Address a) -> (flip Tuple.uncurry4) a \d1 d2 d3 d4 ->
-      writeImpl $ Array.intercalate "." $ map (show <<< un Octet) [d1,d2,d3,d4]
+      writeImpl $ Array.intercalate "." $ map (show <<< un Octet) [ d1, d2, d3, d4 ]
     Ip6 (Ip6Address a) -> (flip Tuple.uncurry8) a \d1 d2 d3 d4 d5 d6 d7 d8 ->
-      writeImpl $ Array.intercalate "." $ map (show <<< un Hextet) [d1,d2,d3,d4,d5,d6,d7,d8]
+      writeImpl $ Array.intercalate "." $ map (show <<< un Hextet) [ d1, d2, d3, d4, d5, d6, d7, d8 ]
 
 instance writeForeignMonotonicTime :: WriteForeign MonotonicTime where
   writeImpl (MonotonicTime m) = unsafeToForeign m
