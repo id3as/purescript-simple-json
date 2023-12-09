@@ -40,7 +40,7 @@ import Data.Identity (Identity(..))
 import Data.Int (toNumber)
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Newtype (class Newtype, un)
+import Data.Newtype (class Newtype, un, unwrap)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Set (Set)
 import Data.Set as Set
@@ -60,12 +60,12 @@ import Erl.Data.List.NonEmpty as NEL
 import Erl.Data.Map (Map)
 import Erl.Data.Map as Map
 import Erl.Data.Tuple as Tuple
-import Erl.Kernel.File (Directory(..), FileName(..))
 import Erl.Kernel.Inet (Ip4Address(..), Ip6Address(..), IpAddress(..), Port(..), parseIp4Address, parseIp6Address, parseIpAddress)
 import Erl.Types (Hextet(..), MonotonicTime(..), Octet(..), Ref, hextet, octet, refToString, stringToRef)
 import Foreign (F, Foreign, ForeignError(..), MultipleErrors, fail, isNull, isUndefined, readBoolean, readChar, readInt, readNull, readNumber, readString, tagOf, unsafeFromForeign, unsafeReadTagged, unsafeToForeign)
 import Foreign.Index (readProp)
 import Partial.Unsafe (unsafeCrashWith)
+import Pathy (Abs, AbsDir, AbsFile, Dir, File, Rel, RelDir, RelFile, SandboxedPath, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath)
 import Prim.Row as Row
 import Prim.RowList (class RowToList, Cons, Nil, RowList)
 import Record (get)
@@ -188,11 +188,17 @@ instance readInt :: ReadForeign Int where
 instance readString :: ReadForeign String where
   readImpl = readString
 
-instance ReadForeign FileName where
-  readImpl = (map FileName) <<< readString
+instance ReadForeign RelFile where
+  readImpl f = (\s -> except $ note (singleton $ ForeignError "Invalid RelFile") $ parseRelFile posixParser s) =<< readString f
 
-instance ReadForeign Directory where
-  readImpl = (map Directory) <<< readString
+instance ReadForeign AbsFile where
+  readImpl f = (\s -> except $ note (singleton $ ForeignError "Invalid AbsFile") $ parseAbsFile posixParser s) =<< readString f
+
+instance ReadForeign RelDir where
+  readImpl f = (\s -> except $ note (singleton $ ForeignError "Invalid RelDir") $ parseRelDir posixParser s) =<< readString f
+
+instance ReadForeign AbsDir where
+  readImpl f = (\s -> except $ note (singleton $ ForeignError "Invalid AbsDir") $ parseAbsDir posixParser s) =<< readString f
 
 instance readBinary :: ReadForeign Binary where
   readImpl b = except $ note (singleton $ ForeignError "Invalid base64") $ base64Decode b
@@ -407,11 +413,17 @@ instance writeForeignNumber :: WriteForeign Number where
 instance writeForeignBoolean :: WriteForeign Boolean where
   writeImpl = unsafeToForeign
 
-instance WriteForeign FileName where
-  writeImpl (FileName str) = unsafeToForeign str
+instance WriteForeign (SandboxedPath Rel File) where
+  writeImpl = unsafeToForeign <<< printPath posixPrinter
 
-instance WriteForeign Directory where
-  writeImpl (Directory str) = unsafeToForeign str
+instance WriteForeign (SandboxedPath Abs File) where
+  writeImpl = unsafeToForeign <<< printPath posixPrinter
+
+instance WriteForeign (SandboxedPath Rel Dir) where
+  writeImpl = unsafeToForeign <<< printPath posixPrinter
+
+instance WriteForeign (SandboxedPath Abs Dir) where
+  writeImpl = unsafeToForeign <<< printPath posixPrinter
 
 instance writeForeignMilliseconds :: WriteForeign Milliseconds where
   writeImpl (Milliseconds m) = unsafeToForeign m
@@ -544,6 +556,9 @@ class WriteForeignKey a where
 
 instance WriteForeignKey String where
   writeKeyImpl = writeImpl
+
+else instance (Newtype a String) => WriteForeignKey a where
+  writeKeyImpl = writeImpl <<< unwrap
 
 foreign import base64Encode :: Binary -> Foreign
 foreign import base64Decode :: Foreign -> Maybe Binary

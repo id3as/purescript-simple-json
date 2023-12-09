@@ -2,9 +2,8 @@ module Test.Util where
 
 import Prelude
 
-import Type.Data.RowList (RLProxy(..))
 import Prim.Row as Row
-import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
+import Prim.RowList (class RowToList, Cons, Nil, RowList)
 import Record (get)
 import Type.Prelude (class IsSymbol, RLProxy(..), SProxy(..))
 
@@ -21,17 +20,17 @@ equal a b = equalFields (RLProxy :: RLProxy rs) a b
 class EqualFields (rs :: RowList Type) (row :: Row Type) | rs -> row where
   equalFields :: RLProxy rs -> Record row -> Record row -> Boolean
 
-instance equalFieldsCons
-  ::
+instance equalFieldsCons ::
   ( IsSymbol name
   , Eq ty
   , Row.Cons name ty tailRow row
   , EqualFields tail row
-  ) => EqualFields (Cons name ty tail) row where
+  ) =>
+  EqualFields (Cons name ty tail) row where
   equalFields _ a b = get' a == get' b && rest
     where
-      get' = get (SProxy :: SProxy name)
-      rest = equalFields (RLProxy :: RLProxy tail) a b
+    get' = get (SProxy :: SProxy name)
+    rest = equalFields (RLProxy :: RLProxy tail) a b
 
 instance equalFieldsNil :: EqualFields Nil row where
   equalFields _ _ _ = true
