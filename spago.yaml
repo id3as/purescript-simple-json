@@ -57,6 +57,7 @@ workspace:
         - erl-atom
         - erl-binary
         - erl-lists
+        - erl-modules
         - erl-process
         - erl-tuples
         - erl-untagged-union
@@ -71,10 +72,9 @@ workspace:
         - record
         - typelevel-prelude
         - unsafe-coerce
-      path: ../purescript-erl-kernel
-      ref: fad0e6704e5a7e476df20b1e1ab1156d45e766bc
-      # git: https://github.com/id3as/purescript-erl-kernel.git
-      # ref: 4ed7bd701686d681b6187cbc8276ae7a4e382e6f
+        - pathy
+      git: https://github.com/id3as/purescript-erl-kernel.git
+      ref: 526599c1246f24dc337de6f80f1cdecd467b4314
     erl-untagged-union:
       dependencies:
         - debug

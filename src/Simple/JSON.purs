@@ -17,6 +17,8 @@ module Simple.JSON
   , getFields
   , class ReadForeignVariant
   , readVariantImpl
+  , class ReadForeignKey
+  , readKeyImpl
   , class WriteForeign
   , writeImpl
   , class WriteForeignKey
@@ -40,15 +42,16 @@ import Data.Identity (Identity(..))
 import Data.Int (toNumber)
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Newtype (class Newtype, un, unwrap)
+import Data.Newtype (un)
 import Data.Nullable (Nullable, toMaybe, toNullable)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.String.NonEmpty (NonEmptyString, fromString, toString)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Time.Duration (Milliseconds(..))
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
-import Data.Tuple (Tuple)
+import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
 import Effect.Exception (message, try)
 import Effect.Uncurried as EU
@@ -188,6 +191,9 @@ instance readInt :: ReadForeign Int where
 instance readString :: ReadForeign String where
   readImpl = readString
 
+instance ReadForeign NonEmptyString where
+  readImpl f = (\s -> except $ note (singleton $ ForeignError "NonEmptyString is empty") $ fromString s) =<< readString f
+
 instance ReadForeign RelFile where
   readImpl f = (\s -> except $ note (singleton $ ForeignError "Invalid RelFile") $ parseRelFile posixParser s) =<< readString f
 
@@ -285,20 +291,18 @@ instance readNullable :: ReadForeign a => ReadForeign (Nullable a) where
 instance (Ord a, ReadForeign a) => ReadForeign (Set a) where
   readImpl xs = Set.fromFoldable <$> (readImpl xs :: F (List a))
 
-instance readMap :: ReadForeign a => ReadForeign (Map String a) where
-  readImpl = sequence <<< map readImpl <=< readObject'
+instance readMap :: (ReadForeignKey k, ReadForeign a) => ReadForeign (Map k a) where
+  readImpl f =
+    Map.fromFoldable <$> ((sequence <<< map readEntry) =<< (readObject' f))
     where
-    readObject' :: Foreign -> F (Map String Foreign)
+    readObject' :: Foreign -> F (List (Tuple Foreign Foreign))
     readObject' value
-      | tagOf value == "map" = pure $ unsafeFromForeign value
+      | tagOf value == "map" = pure $ Map.toUnfoldable $ unsafeFromForeign value
       | otherwise = fail $ TypeMismatch "Object" (tagOf value)
-else instance readNewtypeMap :: (Newtype b String, ReadForeign a) => ReadForeign (Map b a) where
-  readImpl = sequence <<< map readImpl <=< readObject'
-    where
-    readObject' :: Foreign -> F (Map b Foreign)
-    readObject' value
-      | tagOf value == "map" = pure $ unsafeFromForeign value
-      | otherwise = fail $ TypeMismatch "Object" (tagOf value)
+
+    readEntry :: Tuple Foreign Foreign -> F (Tuple k a)
+    readEntry (Tuple key value) = do
+      (\k -> Tuple k <$> readImpl value) =<< readKeyImpl key
 
 instance readRecord ::
   ( RowToList fields fieldList
@@ -400,6 +404,9 @@ instance writeForeignForeign :: WriteForeign Foreign where
 
 instance writeForeignString :: WriteForeign String where
   writeImpl = unsafeToForeign
+
+instance WriteForeign NonEmptyString where
+  writeImpl = unsafeToForeign <<< toString
 
 instance writeForeignInt :: WriteForeign Int where
   writeImpl = unsafeToForeign
@@ -550,15 +557,24 @@ instance readForeignNEArray :: ReadForeign a => ReadForeign (NonEmptyArray a) wh
 instance writeForeignNEArray :: WriteForeign a => WriteForeign (NonEmptyArray a) where
   writeImpl a = writeImpl <<< toArray $ a
 
--- -- | A class for writing a value into a JSON Object Key
+-- | Classes for writing a value into a JSON Object Key
+class ReadForeignKey a where
+  readKeyImpl :: Foreign -> F a
+
+instance ReadForeignKey String where
+  readKeyImpl = readImpl
+
+instance ReadForeignKey NonEmptyString where
+  readKeyImpl = readImpl
+
 class WriteForeignKey a where
   writeKeyImpl :: a -> Foreign
 
 instance WriteForeignKey String where
   writeKeyImpl = writeImpl
 
-else instance (Newtype a String) => WriteForeignKey a where
-  writeKeyImpl = writeImpl <<< unwrap
+instance WriteForeignKey NonEmptyString where
+  writeKeyImpl = unsafeToForeign <<< toString
 
 foreign import base64Encode :: Binary -> Foreign
 foreign import base64Decode :: Foreign -> Maybe Binary

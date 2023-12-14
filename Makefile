@@ -12,5 +12,7 @@ clean:
 
 distclean: clean
 	rm -rf .spago
+
 test: 
-	@spago test
+	rebar3 compile
+	@ERL_LIBS=_build/default/lib spago test

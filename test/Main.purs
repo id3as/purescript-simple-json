@@ -3,8 +3,7 @@ module Test.Main where
 import Prelude
 
 import Control.Monad.Except (runExcept)
-import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, fromLeft, fromLeft', isRight)
+import Data.Either (Either(..), either, fromLeft', isRight)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList(..))
 import Data.Maybe (Maybe)
@@ -12,14 +11,13 @@ import Data.Newtype (class Newtype)
 import Data.NonEmpty (NonEmpty(..))
 import Data.Nullable (Nullable)
 import Data.Variant (Variant)
-import Debug (traceM)
 import Effect (Effect)
 import Effect.Console (log)
 import Effect.Exception (throw)
 import Erl.Data.Map (Map)
-import Foreign (Foreign, ForeignError(..), MultipleErrors)
-import Partial.Unsafe (unsafeCrashWith, unsafePartial)
-import Simple.JSON (class ReadForeign, class WriteForeign, parseJSON, readImpl, readJSON, writeImpl, writeJSON)
+import Foreign (ForeignError(..), MultipleErrors)
+import Partial.Unsafe (unsafeCrashWith)
+import Simple.JSON (class ReadForeign, class ReadForeignKey, class WriteForeign, class WriteForeignKey, readImpl, readJSON, writeImpl, writeJSON)
 import Test.Assert (assertEqual)
 import Test.EnumSumGeneric as Test.EnumSumGeneric
 import Test.Generic as Test.Generic
@@ -64,6 +62,9 @@ newtype AlsoAString = AlsoAString String
 
 derive instance alsoAStringNewtype :: Newtype AlsoAString _
 
+derive newtype instance ReadForeignKey AlsoAString
+derive newtype instance WriteForeignKey AlsoAString
+
 type MyTestStrMapNewtype =
   { a :: Int
   , b :: Map AlsoAString Int
@@ -99,19 +100,11 @@ type MyTestVariant = Variant
 roundtrips :: forall a. ReadForeign a => WriteForeign a => Proxy a -> String -> Effect Unit
 roundtrips _ enc0 = do
   let
-    parseJSON' = lmap show <<< runExcept <<< parseJSON
-
     dec0 :: E a
     dec0 = readJSON enc0
     enc1 = either (const "bad1") writeJSON dec0
   log $ either show writeJSON dec0
   let
-    json0 :: Either String Foreign
-    json0 = parseJSON' enc0
-
-    json1 :: Either String Foreign
-    json1 = parseJSON' enc1
-
     dec1 :: E a
     dec1 = readJSON enc1
     enc2 = either (const "bad2") writeJSON dec1
@@ -121,6 +114,7 @@ shouldEqual :: forall a. Eq a => Show a => a -> a -> Effect Unit
 shouldEqual a b =
   assertEqual { actual: a, expected: b }
 
+unsafeFromLeft :: forall a b. Either a b -> a
 unsafeFromLeft = fromLeft' (\_ -> unsafeCrashWith "not left")
 
 main :: Effect Unit
